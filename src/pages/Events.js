@@ -1,9 +1,10 @@
-import { useLoaderData, json } from "react-router-dom";
+import { Suspense } from "react";
+import { useLoaderData, json, defer, Await } from "react-router-dom";
 import EventsList from "../components/EventsList";
 
 function EventsPage() {
-  const data = useLoaderData();
-  const events = data.events;
+  // we get the events from loader we defined below
+  const { events } = useLoaderData();
 
   // FIRST WAY
   // if(data.isError) {
@@ -11,16 +12,24 @@ function EventsPage() {
   // }
 
   return (
-    <>
-      <EventsList events={events} />
-      {/* we can use loader data direct in eventslist instead of the element / page where we defined it in App.js  */}
-    </>
+    // we her euse another component form react which is used in case of fallback untill certain data is arrived
+    <Suspense fallback={<p style={{ textAlign: "center" }}>Loading...</p>}>
+      {/* we use await component from router dom and it will receive a prop named resolve and wait untill the data is there */}
+      <Await resolve={events}>
+        {(loadedEvents) => <EventsList events={loadedEvents} />}
+      </Await>
+    </Suspense>
+
+    // <>
+    //   <EventsList events={events} />
+    //   {/* we can use loader data direct in eventslist instead of the element / page where we defined it in App.js  */}
+    // </>
   );
 }
 
 export default EventsPage;
 
-export const loader = async () => {
+const loadEvents = async () => {
   const response = await fetch("http://localhost:8080/events");
 
   if (!response.ok) {
@@ -51,6 +60,17 @@ export const loader = async () => {
     // return res;
 
     // repsonse way of returing data
-    return response;
+    // return response;
+
+    // when using defer we need ot pass data by manually extracting
+    const resData = await response.json();
+    return resData.events;
   }
+};
+
+export const loader = async () => {
+  // it receives an object
+  return defer({
+    events: loadEvents(), // this must return a promise bcz defer is all based on if the promise is returned
+  });
 };
